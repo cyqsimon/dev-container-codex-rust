@@ -10,7 +10,7 @@ RUN dnf update -y && \
     dnf clean all
 
 # Set up unprivileged user
-RUN useradd codex
+RUN groupadd --gid=1000 codex && useradd --uid=1000 --gid=1000 codex
 USER codex
 WORKDIR /home/codex
 VOLUME ["/home/codex"]
