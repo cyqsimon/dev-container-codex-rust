@@ -1,6 +1,7 @@
 # Agent environment
 
 This container is an interactive coding-agent environment running on a local GNU/Linux host.
+It is intended to be used for self-iterating development in Rust.
 
 ## Primary goals
 
