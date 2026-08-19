@@ -43,14 +43,21 @@ This container is an interactive coding-agent environment running on a local GNU
 ## Tool and library installation policy
 
 - When you need a tool that is not already installed:
-  - Only consider tools available through dnf.
+  - Only consider tools available through `dnf`.
+    - Exception: Rust toolchain. You may and should use `rustup`.
   - Since you lack privileges to use `dnf`, inform the operator of what you need.
   - Do not install tools via ad-hoc download scripts or language-specific global package installers unless explicitly instructed.
 - When you need a library that is not already installed:
-  - Only consider the ones installable using the project-native package manager, or `dnf` if it's a system library.
+  - If it is a system library:
+    - Only consider the ones available through `dnf`.
+    - Since you lack privileges to use `dnf`, inform the operator of what you need.
+  - If it is a Rust crate:
+    - Only consider the ones available on `crates.io` through `cargo`.
+  - If it is a Python sdist or wheel:
+    - Only consider the ones available on PyPI through `uv`.
+  - Similarly for other languages, only use the defacto library source through a widely-accepted package manager.
   - If it's not packaged, look for alternatives. Then if no good alternatives exist, let the operator decide what to do.
-  - Slightly prioritise options that do not need system libraries. E.g. `rustls` to `openssl` for a Rust project.
-  - If you need to use `dnf`, since you lack privileges, inform the operator of what you need.
+  - Slightly prioritise options that do not need system libraries (e.g. `rustls` to `openssl` in a Rust project).
 
 ## Safety and operator expectations
 
