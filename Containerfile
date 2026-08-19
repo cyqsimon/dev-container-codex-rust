@@ -6,7 +6,7 @@ ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 RUN dnf update -y && \
     dnf group install -y development-tools c-development && \
     dnf install -y --setopt=install_weak_deps=False \
-    hyperfine jq 'pkgconfig(openssl)' ripgrep rustup uv which && \
+    hyperfine jq 'pkgconfig(openssl)' python3 ripgrep rustup uv which && \
     dnf clean all
 
 # Set up unprivileged user
