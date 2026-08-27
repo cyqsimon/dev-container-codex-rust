@@ -2,6 +2,24 @@
 
 Containerised Codex agent intended for autonomously-iterating Rust development.
 
+## Quick start
+
+In your project directory, run
+`podman container runlabel start-here ghcr.io/cyqsimon/dev-container-codex-rust:latest`.
+
+This is equivalent to running:
+
+```bash
+HOME_VOLUME=$(pwd | xargs basename | sed -E 's/[^a-zA-Z0-9_-]/-/g')
+podman run --rm -it \
+  --userns=keep-id:uid=1000,gid=1000 \
+  --volume dev-container-codex-rust-${HOME_VOLUME}:/home/codex:Z \
+  --volume .:/home/codex/project:Z \
+  ghcr.io/cyqsimon/dev-container-codex-rust:latest
+```
+
+Why these options are recommended are explained in the following sections.
+
 ## Usage
 
 Running `podman run --rm -it ghcr.io/cyqsimon/dev-container-codex-rust:latest`
@@ -23,13 +41,3 @@ It is recommended to use a volume mount for `/home/codex/`, and a bind mount for
 In order to avoid file owner inconsistencies between host writes and container writes,
 it is also recommended to pass `--userns=keep-id:uid=1000,gid=1000` to podman;
 UID 1000 and GID 1000 here being the fixed UID and GID for the `codex` user within the container.
-
-### Example:
-
-```bash
-podman run --rm -it \
-  --userns=keep-id:uid=1000,gid=1000 \
-  -v "dev-container-codex-rust-home:/home/codex:Z" \
-  -v "/host/path/to/project:/home/codex/project:Z" \
-  ghcr.io/cyqsimon/dev-container-codex-rust:latest
-```
