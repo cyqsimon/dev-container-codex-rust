@@ -10,11 +10,11 @@ In your project directory, run
 This is equivalent to running:
 
 ```bash
-HOME_VOLUME=dev-container-codex-rust-$(pwd | xargs basename | sed -E 's/[^a-zA-Z0-9_-]/-/g')
-podman run --rm -it \
+CONTAINER_NAME=dev-container-codex-rust-$(pwd | xargs basename | sed -E 's/[^a-zA-Z0-9_-]/-/g')
+podman run --rm -it --name=${CONTAINER_NAME} \
   --userns=keep-id:uid=1000,gid=1000 \
-  --volume ${HOME_VOLUME}:/home/codex:Z \
-  --volume .:/home/codex/project:Z \
+  --volume=${CONTAINER_NAME}:/home/codex:Z \
+  --volume=.:/home/codex/project:Z \
   ghcr.io/cyqsimon/dev-container-codex-rust:latest
 ```
 

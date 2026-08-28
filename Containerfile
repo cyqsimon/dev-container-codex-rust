@@ -25,7 +25,9 @@ WORKDIR /home/codex/project
 ENTRYPOINT ["/home/codex/.local/bin/codex", "--cd=/home/codex/project", "--dangerously-bypass-approvals-and-sandbox"]
 
 # Runlabel shortcut
-LABEL start-here="bash -c '\"podman run --rm -it --userns=keep-id:uid=1000,gid=1000 \
-    --volume=dev-container-codex-rust-\$(pwd | xargs basename | sed -E '\''s/[^a-zA-Z0-9_-]/-/g'\''):/home/codex:Z \
+LABEL start-here="bash -c '\"export CONTAINER_NAME=dev-container-codex-rust-$(pwd | xargs basename | sed -E '\''s/[^a-zA-Z0-9_-]/-/g'\''); \
+    podman run --rm -it --name=$(printenv CONTAINER_NAME) \
+    --userns=keep-id:uid=1000,gid=1000 \
+    --volume=$(printenv CONTAINER_NAME)-home:/home/codex:Z \
     --volume=.:/home/codex/project:Z \
     \${IMAGE}\"'"
