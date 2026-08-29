@@ -17,7 +17,9 @@ VOLUME ["/home/codex"]
 
 # Install codex
 RUN curl -fsSL https://chatgpt.com/codex/install.sh | sh
-RUN /home/codex/.local/bin/codex --version > /home/codex/codex-version
+USER root
+RUN /home/codex/.local/bin/codex --version > /etc/codex-version
+USER codex
 
 # Configure codex
 ADD config.toml ENVIRONMENT.md /home/codex/.codex/
