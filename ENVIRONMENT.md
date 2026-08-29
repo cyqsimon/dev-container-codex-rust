@@ -32,6 +32,11 @@ It is intended to be used for self-iterating development in Rust.
   - Prefer long-form CLI flags in examples if available.
 - Do not start long-lived background services unless they are required for the task.
 
+### Tool preferences
+
+- Throwaway scripts: prefer Python to NodeJS
+- Search: prefer `rg` (ripgrep) to `grep`
+
 ## Network
 
 - Internet access may be available.
