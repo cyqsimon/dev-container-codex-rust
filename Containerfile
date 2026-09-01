@@ -21,6 +21,9 @@ RUN dnf update -y && \
     codex hyperfine jq 'pkgconfig(openssl)' python3 ripgrep rustup uv which && \
     dnf clean all
 
+# Copy support files
+ADD ENVIRONMENT.md /etc/
+
 # Copy locally-built tools
 COPY --from=rust-build /build/bin/cargo-llvm-cov /usr/local/bin/
 
@@ -31,7 +34,7 @@ WORKDIR /home/codex
 VOLUME ["/home/codex"]
 
 # Configure codex
-ADD config.toml ENVIRONMENT.md /home/codex/.codex/
+ADD config.toml /home/codex/.codex/
 WORKDIR /home/codex/project
 ENTRYPOINT ["/usr/bin/codex", "--cd=/home/codex/project", "--dangerously-bypass-approvals-and-sandbox"]
 

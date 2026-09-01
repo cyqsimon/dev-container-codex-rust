@@ -1,4 +1,4 @@
 # See https://learn.chatgpt.com/docs/config-file/config-advanced
 
 check_for_update_on_startup = false
-model_instructions_file = "ENVIRONMENT.md"
+model_instructions_file = "/etc/ENVIRONMENT.md"
