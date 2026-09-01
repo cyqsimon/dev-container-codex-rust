@@ -18,7 +18,7 @@ RUN dnf update -y && \
     dnf group install -y development-tools c-development && \
     dnf copr enable -y sureclaw/codex && \
     dnf install -y --setopt=install_weak_deps=False \
-    codex hyperfine jq 'pkgconfig(openssl)' python3 ripgrep rustup uv which && \
+    codex file hyperfine jq 'pkgconfig(openssl)' python3 ripgrep rustup uv which && \
     dnf clean all
 
 # Copy support files
