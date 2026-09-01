@@ -1,5 +1,16 @@
-FROM registry.fedoraproject.org/fedora:latest
+FROM registry.fedoraproject.org/fedora:latest as rust-build
+ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 
+# Install Rust
+RUN dnf install -y cargo && \
+    dnf clean all
+
+# Build binaries
+RUN --mount=type=cache,target=/root/.cargo/registry \
+    --mount=type=cache,target=/root/.cargo/git \
+    cargo install --root=/build cargo-llvm-cov
+
+FROM registry.fedoraproject.org/fedora:latest as release
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 
 # Install development tools & libraries
@@ -20,6 +31,9 @@ RUN curl -fsSL https://chatgpt.com/codex/install.sh | sh
 USER root
 RUN /home/codex/.local/bin/codex --version > /etc/codex-version
 USER codex
+
+# Copy locally-built tools
+COPY --from=rust-build /build/bin/cargo-llvm-cov /usr/local/bin/
 
 # Configure codex
 ADD config.toml ENVIRONMENT.md /home/codex/.codex/
