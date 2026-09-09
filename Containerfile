@@ -16,7 +16,7 @@ ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 # Install stuff from dnf
 RUN dnf update -y && \
     dnf group install -y development-tools c-development && \
-    dnf copr enable -y sureclaw/codex && \
+    dnf copr enable -y cyqsimon/codex && \
     dnf install -y --setopt=install_weak_deps=False \
     codex file hyperfine jq 'pkgconfig(openssl)' python3 ripgrep rustup uv which && \
     dnf clean all
