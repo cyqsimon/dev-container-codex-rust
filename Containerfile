@@ -1,3 +1,6 @@
+ARG ENV_VARIANT
+
+# ========================================
 FROM registry.fedoraproject.org/fedora:latest as rust-build
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 
@@ -10,9 +13,12 @@ RUN --mount=type=cache,target=/root/.cargo/registry \
     --mount=type=cache,target=/root/.cargo/git \
     cargo install --root=/build cargo-llvm-cov
 
-FROM registry.fedoraproject.org/fedora:latest as release
+# ========================================
+FROM registry.fedoraproject.org/fedora:latest as variant-base
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 
+# ========================================
+FROM variant-base as variant-default
 # Install stuff from dnf
 RUN dnf update -y && \
     dnf group install -y development-tools c-development && \
@@ -20,6 +26,23 @@ RUN dnf update -y && \
     dnf install -y --setopt=install_weak_deps=False \
     codex file hyperfine jq 'pkgconfig(openssl)' python3 ripgrep rustup uv which && \
     dnf clean all
+
+# ========================================
+FROM variant-base as variant-gpu
+# Install stuff from dnf
+RUN dnf update -y && \
+    dnf group install -y development-tools c-development && \
+    dnf copr enable -y cyqsimon/codex && \
+    case "$(uname -m)" in x86_64) NV_REPO_ARCH=x86_64;; aarch64) NV_REPO_ARCH=sbsa;; *) exit 1;; esac && \
+    source <(grep '^VERSION_ID=' /etc/os-release) && \
+    dnf config-manager addrepo --from-repofile \
+    "https://developer.download.nvidia.com/compute/cuda/repos/fedora${VERSION_ID}/${NV_REPO_ARCH}/cuda-fedora${VERSION_ID}.repo" && \
+    dnf install -y --setopt=install_weak_deps=False \
+    codex cuda-toolkit file hyperfine jq 'pkgconfig(openssl)' python3 ripgrep rustup uv vulkan-loader vulkan-tools which && \
+    dnf clean all
+
+# ========================================
+FROM variant-${ENV_VARIANT:?}
 
 # Copy support files
 ADD ENVIRONMENT.md /etc/
