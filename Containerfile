@@ -37,8 +37,9 @@ RUN dnf update -y && \
     source <(grep '^VERSION_ID=' /etc/os-release) && \
     dnf config-manager addrepo --from-repofile \
     "https://developer.download.nvidia.com/compute/cuda/repos/fedora${VERSION_ID}/${NV_REPO_ARCH}/cuda-fedora${VERSION_ID}.repo" && \
+    CUDA_OLDEST=$(dnf rq -q --qf '%{name}-%{evr}\n' cuda-toolkit | sort -V | head -n1) && \
     dnf install -y --setopt=install_weak_deps=False \
-    codex cuda-toolkit file hyperfine jq 'pkgconfig(openssl)' python3 ripgrep rustup uv vulkan-loader vulkan-tools which && \
+    codex ${CUDA_OLDEST} file hyperfine jq 'pkgconfig(openssl)' python3 ripgrep rustup uv vulkan-loader vulkan-tools which && \
     dnf clean all
 
 # ========================================
