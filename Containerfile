@@ -14,11 +14,9 @@ RUN --mount=type=cache,target=/root/.cargo/registry \
     cargo install --root=/build cargo-llvm-cov
 
 # ========================================
-FROM registry.fedoraproject.org/fedora:latest as variant-base
+FROM registry.fedoraproject.org/fedora:latest as variant-default
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 
-# ========================================
-FROM variant-base as variant-default
 # Install stuff from dnf
 RUN dnf update -y && \
     dnf group install -y development-tools c-development && \
@@ -28,18 +26,15 @@ RUN dnf update -y && \
     dnf clean all
 
 # ========================================
-FROM variant-base as variant-gpu
+FROM variant-default as variant-gpu
+
 # Install stuff from dnf
-RUN dnf update -y && \
-    dnf group install -y development-tools c-development && \
-    dnf copr enable -y cyqsimon/codex && \
-    case "$(uname -m)" in x86_64) NV_REPO_ARCH=x86_64;; aarch64) NV_REPO_ARCH=sbsa;; *) exit 1;; esac && \
+RUN case "$(uname -m)" in x86_64) NV_REPO_ARCH=x86_64;; aarch64) NV_REPO_ARCH=sbsa;; *) exit 1;; esac && \
     source <(grep '^VERSION_ID=' /etc/os-release) && \
     dnf config-manager addrepo --from-repofile \
     "https://developer.download.nvidia.com/compute/cuda/repos/fedora${VERSION_ID}/${NV_REPO_ARCH}/cuda-fedora${VERSION_ID}.repo" && \
     CUDA_OLDEST=$(dnf rq -q --qf '%{name}-%{evr}\n' cuda-toolkit | sort -V | head -n1) && \
-    dnf install -y --setopt=install_weak_deps=False \
-    codex ${CUDA_OLDEST} file hyperfine jq 'pkgconfig(openssl)' python3 ripgrep rustup uv vulkan-loader vulkan-tools which && \
+    dnf install -y --setopt=install_weak_deps=False ${CUDA_OLDEST} && \
     dnf clean all
 
 # ========================================
