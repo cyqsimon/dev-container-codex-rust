@@ -34,7 +34,7 @@ RUN case "$(uname -m)" in x86_64) NV_REPO_ARCH=x86_64;; aarch64) NV_REPO_ARCH=sb
     dnf config-manager addrepo --from-repofile \
     "https://developer.download.nvidia.com/compute/cuda/repos/fedora${VERSION_ID}/${NV_REPO_ARCH}/cuda-fedora${VERSION_ID}.repo" && \
     CUDA_OLDEST=$(dnf rq -q --qf '%{name}-%{evr}\n' cuda-toolkit | sort -V | head -n1) && \
-    dnf install -y --setopt=install_weak_deps=False ${CUDA_OLDEST} && \
+    dnf install -y --setopt=install_weak_deps=False ${CUDA_OLDEST} vulkan-loader vulkan-tools && \
     dnf clean all
 
 # ========================================
