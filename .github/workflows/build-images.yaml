@@ -1,0 +1,150 @@
+name: Build multi-arch images on native runners
+
+on:
+  push:
+    branches:
+      - master
+  schedule:
+    - cron: "40 20 * * *"
+      timezone: UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+# Only one workflow run can be active at the same time
+concurrency:
+  group: podman-farm-publish
+
+jobs:
+  generate-iroh-secrets:
+    runs-on: ubuntu-slim
+    outputs:
+      signaller: ${{ steps.generate.outputs.signaller }}
+      aarch64-podman: ${{ steps.generate.outputs.aarch64-podman }}
+    steps:
+      - name: Generate IROH secrets using openssl
+        id: generate
+        run: |
+          echo "signaller=$(openssl rand -hex 32)" >> "$GITHUB_OUTPUT"
+          echo "aarch64-podman=$(openssl rand -hex 32)" >> "$GITHUB_OUTPUT"
+
+  # The coordinator and workers must overlap after secret generation;
+  # hence they do not depend on each other.
+  coordinator:
+    runs-on: ubuntu-26.04
+    needs: generate-iroh-secrets
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y caddy curl podman
+
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@main
+
+      - name: Install dumbpipe
+        run: |
+          cargo binstall -y dumbpipe
+
+      - name: Start coordinator status signaller and forward using dumbpipe
+        env:
+          IROH_SECRET: ${{ needs.generate-iroh-secrets.outputs.signaller }}
+        run: |
+          systemd-run --user --unit=coordinator-signaller \
+            caddy respond --listen=127.0.0.1:8000 --body=pong
+          systemd-run --user --unit=coordinator-signaller-forward --setenv=IROH_SECRET \
+            dumbpipe listen-tcp --host="127.0.0.1:8000"
+
+      - name: Connect to Aarch64 worker using dumbpipe
+        timeout-minutes: 5
+        env:
+          IROH_SECRET: ${{ needs.generate-iroh-secrets.outputs.aarch64-podman }}
+        run: |
+          DUMBPIPE_TICKET="$(dumbpipe generate-ticket)"
+          systemd-run --user --unit=aarch64-podman-socket \
+            dumbpipe connect-tcp --addr=127.0.0.1:8100 "$DUMBPIPE_TICKET"
+          while ! curl -sf http://127.0.0.1:8100/_ping >/dev/null; do :; done
+
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s' "$GHCR_TOKEN" |
+            podman login --username "$GITHUB_ACTOR" --password-stdin ghcr.io
+
+      - name: Build images and publish
+        run: |
+          image="ghcr.io/cyqsimon/dev-container-codex-rust"
+          podman system connection add worker-aarch64 tcp://127.0.0.1:8100
+          podman farm create farm0 worker-aarch64
+
+          # HACK: not using an explicit tag due to podman bug
+          # see https://github.com/podman-container-tools/podman/pull/29378
+          podman farm build \
+            --farm=farm0 --local \
+            --label="org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            --label="org.opencontainers.image.revision=$GITHUB_SHA" \
+            --build-arg=ENV_VARIANT=default \
+            --tag="$image" .
+
+          # unfortunately Nvidia offers no official CUDA build for Fedora Aarch64
+          # HACK: not using `podman farm build` to avoid the aforementioned bug
+          # we only need to build on x86_64 by happenstance
+          podman build \
+            --label="org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            --label="org.opencontainers.image.revision=$GITHUB_SHA" \
+            --build-arg=ENV_VARIANT=gpu \
+            --tag="$image:gpu-latest" .
+          podman push "$image:gpu-latest"
+
+  worker-aarch64:
+    runs-on: ubuntu-26.04-arm
+    needs: generate-iroh-secrets
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman curl
+
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@main
+
+      - name: Install dumbpipe
+        run: |
+          cargo binstall -y dumbpipe
+
+      - name: Start Podman socket and forward using dumbpipe
+        env:
+          IROH_SECRET: ${{ needs.generate-iroh-secrets.outputs.aarch64-podman }}
+        run: |
+          systemctl --user start podman.socket
+          systemd-run --user --unit=podman-socket-forward --setenv=IROH_SECRET \
+            dumbpipe listen-unix --socket-path "$XDG_RUNTIME_DIR/podman/podman.sock"
+
+      - name: Connect to coordinator using dumbpipe
+        timeout-minutes: 5
+        env:
+          IROH_SECRET: ${{ needs.generate-iroh-secrets.outputs.signaller }}
+        run: |
+          DUMBPIPE_TICKET="$(dumbpipe generate-ticket)"
+          systemd-run --user --unit=coordinator-socket \
+            dumbpipe connect-tcp --addr=127.0.0.1:8000 "$DUMBPIPE_TICKET"
+          while ! curl -sf http://127.0.0.1:8000/ >/dev/null; do :; done
+
+      - name: Spin until coordinator shuts down
+        run: |
+          CONSECUTIVE_FAIL_COUNT=0
+          while true; do
+            if curl -sf --max-time=5 http://127.0.0.1:8000/ >/dev/null; then
+              CONSECUTIVE_FAIL_COUNT=0
+            else
+              ((CONSECUTIVE_FAIL_COUNT+=1))
+              [ "$CONSECUTIVE_FAIL_COUNT" -gt 2 ] && break
+            fi
+            sleep 5
+          done
